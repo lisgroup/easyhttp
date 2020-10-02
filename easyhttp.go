@@ -1,10 +1,13 @@
 package easyhttp
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -15,7 +18,7 @@ import (
 // bodyMap 请求的 body 内容
 // header 请求的头信息
 // timeout 超时时间
-func Request(rawUrl, method string, bodyMaps, headers map[string]string, timeout time.Duration) (result string, err error) {
+func Request(rawUrl, method string, bodyMaps map[string]interface{}, headers map[string]string, timeout time.Duration) (result string, err error) {
 	if timeout <= 0 {
 		timeout = 5
 	}
@@ -23,12 +26,38 @@ func Request(rawUrl, method string, bodyMaps, headers map[string]string, timeout
 		Timeout: timeout * time.Second,
 	}
 	// 请求的 body 内容
-	data := url.Values{}
-	for key, value := range bodyMaps {
-		data.Set(key, value)
+	// 判断headers头信息是否存在content-type:application/json
+	var isJson bool
+	for key, value := range headers {
+		if strings.ToLower(key) == "content-type" && strings.ToLower(value) == "application/json" {
+			isJson = true
+		}
 	}
+
+	var sendBody io.Reader
+	if isJson {
+		res, errJson := json.Marshal(bodyMaps)
+		if errJson != nil {
+			err = errJson
+			return
+		}
+		sendBody = bytes.NewBuffer(res)
+	} else {
+		data := url.Values{}
+		for key, value := range bodyMaps {
+			// interface 转 string
+			str, errInter := interfaceToString(value)
+			if errInter != nil {
+				err = errInter
+				return
+			}
+			data.Set(key, str)
+		}
+		sendBody = strings.NewReader(data.Encode())
+	}
+
 	// 提交请求
-	request, err1 := http.NewRequest(method, rawUrl, strings.NewReader(data.Encode())) // URL-encoded payload
+	request, err1 := http.NewRequest(method, rawUrl, sendBody) // URL-encoded|JSON payload
 	if err1 != nil {
 		err = err1
 		return
@@ -44,10 +73,33 @@ func Request(rawUrl, method string, bodyMaps, headers map[string]string, timeout
 	if response.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("get content failed status code is %d ", response.StatusCode)
 	}
-	res, err2 := ioutil.ReadAll(response.Body)
-	if err2 != nil {
-		err = err2
-		return
+	buf := make([]byte, 4096)
+	for {
+		n, err2 := response.Body.Read(buf)
+		if n == 0 {
+			break
+		}
+		if err2 != nil && err2 != io.EOF {
+			err = err2
+			return
+		}
+		// 累加循环读取的 buf 数据，存入 result 中
+		result += string(buf[:n])
 	}
-	return string(res), nil
+	return
+}
+
+func interfaceToString(unknown interface{}) (str string, err error) {
+	// interface 转 string
+	switch unknown.(type) {
+	case int:
+		str = strconv.Itoa(unknown.(int))
+	case string:
+		str = unknown.(string)
+	case byte:
+		str = string(unknown.([]byte))
+	default:
+		err = fmt.Errorf("type: %T not supported; Only support int/string/[]byte", unknown)
+	}
+	return str, err
 }
