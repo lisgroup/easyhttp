@@ -83,11 +83,14 @@ func (c *Client) Request(rawUrl, method string, cli ...Client) (result string, e
 		request.Header.Set(key, fmt.Sprintf("%v", val))
 	}
 	// 处理返回结果
-	response, _ := client.Do(request)
+	response, err := client.Do(request)
+	if err != nil {
+		return
+	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("get content failed status code is %d ", response.StatusCode)
+		return "", fmt.Errorf("Get content failed status code is %d ", response.StatusCode)
 	}
 	buf := make([]byte, 4096)
 	for {
@@ -107,10 +110,10 @@ func (c *Client) Request(rawUrl, method string, cli ...Client) (result string, e
 
 // Get 请求方式
 func (c *Client) Get(rawUrl string, cli ...Client) (result string, err error) {
-	return c.Request(rawUrl, "GET")
+	return c.Request(rawUrl, "GET", cli...)
 }
 
 // Post 请求方式
 func (c *Client) Post(rawUrl string, cli ...Client) (result string, err error) {
-	return c.Request(rawUrl, "POST")
+	return c.Request(rawUrl, "POST", cli...)
 }
