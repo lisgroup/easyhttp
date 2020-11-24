@@ -104,3 +104,13 @@ func (c *Client) Request(rawUrl, method string, cli ...Client) (result string, e
 	}
 	return
 }
+
+// Get 请求方式
+func (c *Client) Get(rawUrl string, cli ...Client) (result string, err error) {
+	return c.Request(rawUrl, "GET")
+}
+
+// Post 请求方式
+func (c *Client) Post(rawUrl string, cli ...Client) (result string, err error) {
+	return c.Request(rawUrl, "POST")
+}
