@@ -20,8 +20,21 @@ import (
 )
 
 func main() {
-	body := map[string]string{}
-    resp, _ := easyhttp.Request("http://www.example.com/", "GET", body, body, 5)
-    fmt.Println(resp)
+	header := map[string]interface{}{
+		"Content-Type": "application/json",
+		"User-Agent":   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36",
+	}
+	bodyMaps := map[string]interface{}{
+		"key1": "1111",
+		"key2": "222",
+	}
+	cli := easyhttp.Client{BaseURI: "", Timeout: 4.00, Headers: header, BodyMaps: bodyMaps}
+	
+	result, err := cli.Request("http://localhost/", "get")
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(result)
 }
+
 ```
