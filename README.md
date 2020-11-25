@@ -56,7 +56,8 @@ func main() {
         "key1": "1111",
         "key2": "222",
     }
-    cli := easyhttp.Client{BaseURI: "", Timeout: 4.00, Headers: header, BodyMaps: bodyMaps}
+    options := http.Options{BodyMaps: bodyMaps, Headers: header, Timeout: 4}
+    cli := http.NewClient(options)
 
     result, err := cli.Post("http://localhost/")
     if err != nil {
