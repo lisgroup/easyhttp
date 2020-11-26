@@ -39,7 +39,20 @@ func NewClient(opts ...Options) *Client {
 // options 可选参数
 func (c *Client) Request(rawUrl, method string, options ...Options) (result string, err error) {
 	if len(options) > 0 {
-		c.options = options[0]
+		newOpts := options[0]
+		// 判断是否替换公共配置
+		if newOpts.BaseURI != "" {
+			c.options.BaseURI = newOpts.BaseURI
+		}
+		if newOpts.Timeout != 0 {
+			c.options.Timeout = newOpts.Timeout
+		}
+		if newOpts.Headers != nil {
+			c.options.Headers = newOpts.Headers
+		}
+		if newOpts.BodyMaps != nil {
+			c.options.BodyMaps = newOpts.BodyMaps
+		}
 	}
 	// 默认超时 20 秒
 	if c.options.Timeout <= 0 {
