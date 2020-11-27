@@ -2,6 +2,7 @@ package easyhttp
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,20 +12,14 @@ import (
 	"time"
 )
 
-// Client 结构体
+// Client struct
 type Client struct {
 	options Options
+	cli     *http.Client
+	req     *http.Request
 }
 
-// Options 结构体
-type Options struct {
-	BaseURI  string
-	Timeout  float32
-	Headers  map[string]interface{}
-	BodyMaps map[string]interface{}
-}
-
-// Client 构造函数
+// NewClient func Constructor Client
 func NewClient(opts ...Options) *Client {
 	var client = Client{}
 	if len(opts) > 0 {
@@ -33,14 +28,57 @@ func NewClient(opts ...Options) *Client {
 	return &client
 }
 
-// Request 简单封装一个Http请求方法
-// rawUrl 请求的接口地址
-// method 请求的方法，GET/POST
-// options 可选参数
-func (c *Client) Request(rawUrl, method string, options ...Options) (result string, err error) {
+// Request Simply encapsulating a HTTP request method
+// rawUrl Requested web address
+// method Method of request,Only [GET/POST] is supported
+// options...
+func (c *Client) Request(rawUrl, method string, options ...Options) (response *Response, err error) {
+	// 设置 options 并获取 http.Client
+	c.setOptions(options...)
+
+	method = strings.ToUpper(method)
+	if c.options.BaseURI != "" {
+		rawUrl = c.options.BaseURI + rawUrl
+	}
+
+	switch method {
+	case "GET":
+		c.req, err = http.NewRequest("GET", rawUrl, nil)
+		if err != nil {
+			return
+		}
+	case "POST":
+		c.req, err = http.NewRequest("POST", rawUrl, c.setBody())
+		if err != nil {
+			return
+		}
+	default:
+		return &Response{}, fmt.Errorf("Only GET and POST methods are supported\n")
+	}
+
+	// add http header
+	c.setHeader()
+	// add query params
+	c.setQuery()
+
+	return c.getResponse()
+}
+
+// Get request method
+func (c *Client) Get(rawUrl string, options ...Options) (*Response, error) {
+	return c.Request(rawUrl, "GET", options...)
+}
+
+// Post request method
+func (c *Client) Post(rawUrl string, options ...Options) (*Response, error) {
+	return c.Request(rawUrl, "POST", options...)
+}
+
+// setOptions func
+func (c *Client) setOptions(options ...Options) {
 	if len(options) > 0 {
 		newOpts := options[0]
-		// 判断是否替换公共配置
+		// Determine whether to replace the public configuration
 		if newOpts.BaseURI != "" {
 			c.options.BaseURI = newOpts.BaseURI
 		}
@@ -53,72 +91,95 @@ func (c *Client) Request(rawUrl, method string, options ...Options) (result stri
 		if newOpts.BodyMaps != nil {
 			c.options.BodyMaps = newOpts.BodyMaps
 		}
+		if newOpts.Query != nil {
+			c.options.Query = newOpts.Query
+		}
+		if newOpts.JSON != nil {
+			c.options.JSON = newOpts.JSON
+		}
 	}
-	// 默认超时 20 秒
+	// default 20 second
 	if c.options.Timeout <= 0 {
 		c.options.Timeout = 20
 	}
-
-	client := &http.Client{
-		Timeout: time.Duration(c.options.Timeout*1000) * time.Millisecond,
-	}
-	// 请求的 body 内容
-	// 判断headers头信息是否存在 content-type:application/json
-	var isJson bool
-	for key, value := range c.options.Headers {
-		val := fmt.Sprintf("%v", value)
-		if strings.ToLower(key) == "content-type" && strings.ToLower(val) == "application/json" {
-			isJson = true
-			break
-		}
+	// skip verify SSL certificate
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 
-	var sendBody io.Reader
-	if isJson {
-		res, errJson := json.Marshal(c.options.BodyMaps)
-		if errJson != nil {
-			err = errJson
-			return
-		}
-		sendBody = bytes.NewBuffer(res)
-	} else {
-		data := url.Values{}
-		for key, value := range c.options.BodyMaps {
-			// interface 转 string
-			data.Set(key, fmt.Sprintf("%v", value))
-		}
-		sendBody = strings.NewReader(data.Encode())
+	c.cli = &http.Client{
+		Timeout:   time.Duration(c.options.Timeout*1000) * time.Millisecond,
+		Transport: tr,
 	}
+}
 
-	method = strings.ToUpper(method)
-	if method != "GET" && method != "POST" {
-		method = "GET"
-	}
-	if c.options.BaseURI != "" {
-		rawUrl = c.options.BaseURI + rawUrl
-	}
-	// 提交请求
-	request, err := http.NewRequest(method, rawUrl, sendBody) // URL-encoded|JSON payload
-	if err != nil {
-		return
-	}
-	// 增加header头信息
+// setHeader add http header
+func (c *Client) setHeader() {
 	for key, val := range c.options.Headers {
-		request.Header.Set(key, fmt.Sprintf("%v", val))
+		c.req.Header.Set(key, fmt.Sprintf("%v", val))
 	}
-	// 处理返回结果
-	response, err := client.Do(request)
+}
+
+// setQuery
+func (c *Client) setQuery() {
+	switch c.options.Query.(type) {
+	case string:
+		str := c.options.Query.(string)
+		c.req.URL.RawQuery = str
+	case map[string]interface{}:
+		q := c.req.URL.Query()
+		for k, v := range c.options.Query.(map[string]interface{}) {
+			q.Set(k, fmt.Sprintf("%v", v))
+		}
+		c.req.URL.RawQuery = q.Encode()
+	}
+}
+
+// setBody
+func (c *Client) setBody() io.Reader {
+	// Form => application/x-www-form-urlencoded
+	if c.options.BodyMaps != nil {
+		values := url.Values{}
+		for k, v := range c.options.BodyMaps {
+			if vv, ok := v.(string); ok {
+				values.Set(k, vv)
+			}
+			if vv, ok := v.([]string); ok {
+				for _, vvv := range vv {
+					values.Add(k, vvv)
+				}
+			}
+		}
+		return strings.NewReader(values.Encode())
+	}
+
+	// json => application/json
+	if c.options.JSON != nil {
+		b, err := json.Marshal(c.options.JSON)
+		if err == nil {
+			return bytes.NewReader(b)
+		}
+	}
+	return nil
+}
+
+// getResponse Processing returned results
+func (c *Client) getResponse() (response *Response, err error) {
+	startTime := time.Now() // start time
+	resp, err := c.cli.Do(c.req)
+	cost := time.Since(startTime) // cost time
 	if err != nil {
 		return
 	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Get content failed status code is %d ", response.StatusCode)
-	}
+	defer resp.Body.Close()
+	// if resp.StatusCode != http.StatusOK {
+	//     err = fmt.Errorf("Get content failed status code is %d ", resp.StatusCode)
+	//     return
+	// }
+	var result string
 	buf := make([]byte, 4096)
 	for {
-		n, err2 := response.Body.Read(buf)
+		n, err2 := resp.Body.Read(buf)
 		if n == 0 {
 			break
 		}
@@ -126,18 +187,14 @@ func (c *Client) Request(rawUrl, method string, options ...Options) (result stri
 			err = err2
 			return
 		}
-		// 累加循环读取的 buf 数据，存入 result 中
+		// The buf data read by the cycle is accumulated and stored in the result
 		result += string(buf[:n])
 	}
-	return
-}
-
-// Get 请求方式
-func (c *Client) Get(rawUrl string, options ...Options) (result string, err error) {
-	return c.Request(rawUrl, "GET", options...)
-}
-
-// Post 请求方式
-func (c *Client) Post(rawUrl string, options ...Options) (result string, err error) {
-	return c.Request(rawUrl, "POST", options...)
+	// return Response struct
+	return &Response{
+		Content:  result,
+		HttpCode: resp.StatusCode,
+		Status:   resp.Status,
+		Cost:     float32(cost),
+	}, nil
 }
