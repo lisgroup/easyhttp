@@ -1,16 +1,16 @@
-# http
+# easyhttp
 
-#### 介绍
-简易封装 http 请求包
+#### Introduce
+Simple encapsulation of HTTP request package
 
-#### 使用说明
+#### Usage
 
-1. 获取安装包
+1. Download and install
 
 `go get -u github.com/lisgroup/easyhttp`
 
-2.  直接使用
-##### 2.1 Get 方式
+2.  Demo
+##### 2.1 Get method
 ```go
 package main
 
@@ -33,7 +33,7 @@ func main() {
 
 ```
 
-##### 2.2 Post 方式
+##### 2.2 Post method
 ```go
 func main() {
     cli := easyhttp.Client{}
@@ -46,7 +46,7 @@ func main() {
 }
 ```
 
-##### 2.3 带 Header 和数据的请求
+##### 2.3 add Header and Request BodyMaps
 ```go
 func main() {
     header := map[string]interface{}{
