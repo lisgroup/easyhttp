@@ -16,6 +16,7 @@ package main
 
 import (
     "fmt"
+    "log"
 
     "github.com/lisgroup/easyhttp"
 )
@@ -25,9 +26,9 @@ func main() {
     
     result, err := cli.Get("http://localhost/")
     if err != nil {
-        fmt.Println(err)
+        log.Println(err)
     }
-    fmt.Println(result)
+    fmt.Println(result.Content)
 }
 
 ```
@@ -39,9 +40,9 @@ func main() {
 
     result, err := cli.Post("http://localhost/")
     if err != nil {
-        fmt.Println(err)
+        log.Println(err)
     }
-    fmt.Println(result)
+    fmt.Println(result.Content)
 }
 ```
 
@@ -61,8 +62,8 @@ func main() {
 
     result, err := cli.Post("http://localhost/")
     if err != nil {
-        fmt.Println(err)
+        log.Println(err)
     }
-    fmt.Println(result)
+    fmt.Println(result.Content)
 }
 ```
