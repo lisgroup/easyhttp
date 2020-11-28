@@ -195,6 +195,6 @@ func (c *Client) getResponse() (response *Response, err error) {
 		Content:  result,
 		HttpCode: resp.StatusCode,
 		Status:   resp.Status,
-		Cost:     float32(cost),
+		Cost:     float32(cost / 1e6),
 	}, nil
 }

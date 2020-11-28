@@ -2,8 +2,8 @@ package easyhttp
 
 // Response struct
 type Response struct {
-	Content  string
-	HttpCode int
-	Status   string
-	Cost     float32
+	Content  string  // Http response content
+	HttpCode int     // http code
+	Status   string  // http status
+	Cost     float32 // http cost Microsecond
 }
