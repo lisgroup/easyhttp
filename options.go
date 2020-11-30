@@ -8,4 +8,5 @@ type Options struct {
 	BodyMaps map[string]interface{} // request body
 	Query    interface{}            // request query
 	JSON     interface{}            // request JSON
+	Proxy    []string               // Proxy url
 }

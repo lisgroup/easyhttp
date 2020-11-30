@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
@@ -105,6 +106,20 @@ func (c *Client) setOptions(options ...Options) {
 	// skip verify SSL certificate
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	// set Proxy
+	if len(c.options.Proxy) > 0 {
+		var randProxy string // rand from Proxy
+		if len(c.options.Proxy) == 1 {
+			randProxy = c.options.Proxy[0]
+		} else {
+			rand.Seed(time.Now().Unix())
+			randProxy = c.options.Proxy[rand.Intn(len(c.options.Proxy))]
+		}
+		proxy, err := url.Parse(randProxy)
+		if err == nil {
+			tr.Proxy = http.ProxyURL(proxy)
+		}
 	}
 
 	c.cli = &http.Client{
