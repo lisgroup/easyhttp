@@ -156,13 +156,15 @@ func (c *Client) setBody() io.Reader {
 	if c.options.BodyMaps != nil {
 		values := url.Values{}
 		for k, v := range c.options.BodyMaps {
-			if vv, ok := v.(string); ok {
-				values.Set(k, vv)
-			}
-			if vv, ok := v.([]string); ok {
-				for _, vvv := range vv {
+			switch v.(type) {
+			case string:
+				values.Set(k, v.(string))
+			case []string:
+				for _, vvv := range v.([]string) {
 					values.Add(k, vvv)
 				}
+			default:
+				values.Set(k, fmt.Sprintf("%v", v))
 			}
 		}
 		return strings.NewReader(values.Encode())
