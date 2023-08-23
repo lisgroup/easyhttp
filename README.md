@@ -22,7 +22,7 @@ import (
 )
 
 func main() {
-    cli := easyhttp.Client{}
+    cli := easyhttp.NewClient()
     
     result, err := cli.Get("http://localhost/")
     if err != nil {
@@ -36,7 +36,7 @@ func main() {
 ##### 2.2 Post method
 ```go
 func main() {
-    cli := easyhttp.Client{}
+    cli := easyhttp.NewClient()
 
     result, err := cli.Post("http://localhost/")
     if err != nil {
