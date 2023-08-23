@@ -29,12 +29,12 @@ func NewClient(opts ...Options) *Client {
 	return &client
 }
 
-// Request Simply encapsulating a HTTP request method
+// Request Simply encapsulating an HTTP request method
 // rawUrl Requested web address
-// method Method of request,Only [GET/POST] is supported
+// Method of request,Only [GET/POST] is supported
 // options...
 func (c *Client) Request(rawUrl, method string, options ...Options) (response *Response, err error) {
-	// 设置 options 并获取 http.Client
+	// Set options and get http.Client
 	c.setOptions(options...)
 
 	method = strings.ToUpper(method)
@@ -113,8 +113,8 @@ func (c *Client) setOptions(options ...Options) {
 		if len(c.options.Proxy) == 1 {
 			randProxy = c.options.Proxy[0]
 		} else {
-			rand.Seed(time.Now().Unix())
-			randProxy = c.options.Proxy[rand.Intn(len(c.options.Proxy))]
+			r := rand.New(rand.NewSource(time.Now().Unix()))
+			randProxy = c.options.Proxy[r.Intn(len(c.options.Proxy))]
 		}
 		proxy, err := url.Parse(randProxy)
 		if err == nil {
@@ -188,7 +188,9 @@ func (c *Client) getResponse() (response *Response, err error) {
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 	// if resp.StatusCode != http.StatusOK {
 	//     err = fmt.Errorf("Get content failed status code is %d ", resp.StatusCode)
 	//     return
